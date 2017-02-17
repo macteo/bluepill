@@ -38,7 +38,7 @@
     return sim;
 }
 
-- (void)createSimulatorWithDeviceName:(NSString *)deviceName completion:(void (^)(NSError *, SimDevice *))completion {
+- (void)createSimulatorWithDeviceName:(NSString *)deviceName completion:(void (^)(NSError *))completion {
     assert(!self.device);
     deviceName = deviceName ?: [NSString stringWithFormat:@"BP%d", getpid()];
     // Create a new simulator with the given device/runtime
@@ -62,18 +62,17 @@
                            __self.device = device;
                            if (!__self.device || error) {
                                dispatch_async(dispatch_get_main_queue(), ^{
-                                   completion(error, device);
+                                   completion(error);
                                });
                            } else {
                                dispatch_async(dispatch_get_main_queue(), ^{
                                    [__self bootWithCompletion:^(NSError *error) {
                                        dispatch_async(dispatch_get_main_queue(), ^{
-                                           completion(error, device);
+                                           completion(error);
                                        });
                                    }];
                                });
                            }
-                           completion(error, device);
                        }];
 }
 
@@ -133,8 +132,8 @@
     NSString *hostBundleId = [SimulatorHelper bundleIdForPath:self.config.appBundlePath];
     NSString *hostBundlePath = self.config.appBundlePath;
 
-    hostBundleId = @"com.apple.test.BPSampleAppUITests-Runner";
-    hostBundlePath = @"/Users/khu/linkedin/bluepill/build/Products/Debug-iphonesimulator/BPSampleAppUITests-Runner.app";
+//    hostBundleId = @"com.apple.test.BPSampleAppUITests-Runner";
+//    hostBundlePath = @"/Users/khu/linkedin/bluepill/build/Products/Debug-iphonesimulator/BPSampleAppUITests-Runner.app";
     // Install the host application
     BOOL installed = [self.device
                       installApplication:[NSURL fileURLWithPath:hostBundlePath]
@@ -159,8 +158,6 @@
     NSDictionary *argsAndEnv = [BPUtils buildArgsAndEnvironmentWith:self.config.schemePath];
 
     NSMutableDictionary *appLaunchEnvironment = [NSMutableDictionary dictionaryWithDictionary:[SimulatorHelper appLaunchEnvironmentWithBundleID:hostBundleId device:self.device config:self.config]];
-//                                                                                                                         testbundlePath:self.config.testBundlePath
-//                                                                                                                                 config:self.config]];
     [appLaunchEnvironment addEntriesFromDictionary:argsAndEnv[@"env"]];
 
     if (self.config.testing_CrashAppOnLaunch) {
@@ -207,40 +204,6 @@
     // Keep the simulator runner around through processing of the block
     __block typeof(self) blockSelf = self;
 
-    NSError *infoError;
-    NSDictionary *appInfo = [self.device propertiesOfApplication:hostBundleId error:&infoError];
-    if (infoError) {
-        NSLog(@"Error in getting appInfo %@", [infoError localizedDescription]);
-    }
-
-    NSString *appPath = appInfo[@"Path"];
-    self.config.testBundlePath = [NSString stringWithFormat:@"%@/Plugins/BPSampleAppUITests.xctest", appPath];
-
-    options = @{
-                @"arguments" :  @[
-                        @"-NSTreatUnknownArgumentsAsOpen",
-                        @NO,
-                        @"-ApplePersistenceIgnoreState",
-                        @YES
-                        ],
-                @"environment" : @{
-                        @"AppTargetLocation" : [NSString stringWithFormat:@"%@/XCTRunner", appPath],
-                        @"DTX_CONNECTION_SERVICES_PATH" : @"/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/Developer/Library/PrivateFrameworks/DTXConnectionServices.framework",
-                        @"DYLD_FRAMEWORK_PATH" : @"/Users/khu/linkedin/bluepill/build/Products/Debug-iphonesimulator:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks",
-                        @"DYLD_INSERT_LIBRARIES" : @"/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/PrivateFrameworks/IDEBundleInjection.framework/IDEBundleInjection",
-                        @"DYLD_LIBRARY_PATH" : @"/Users/khu/linkedin/bluepill/build/Products/Debug-iphonesimulator:/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/Library/Frameworks",
-                        @"IMAGE_DIFF_DIR" : @"/Users/khu/Library/Developer/Xcode/DerivedData/pxctest-epkdsjrwivziludurrvyaxsmqdky/Build/Products/Debug/output/BPSampleAppUITests/iOS 10.2/iPhone 7",
-                        @"OBJC_DISABLE_GC" : @YES,
-                        @"OS_ACTIVITY_DT_MODE" : @YES,
-                        @"TestBundleLocation" : [NSString stringWithFormat:@"%@/Plugins/BPSampleAppUITests.xctest", appPath],
-                        @"XCInjectBundle" : [NSString stringWithFormat:@"%@/Plugins/BPSampleAppUITests.xctest", appPath],
-                        @"XCInjectBundleInto" : [NSString stringWithFormat:@"%@/XCTRunner", appPath],
-                        @"XCODE_DBG_XPC_EXCLUSIONS" : @"com.apple.dt.xctestSymbolicator",
-                        @"XCTestConfigurationFilePath" : [SimulatorHelper testEnvironmentWithConfiguration:self.config],
-                        @"__XCODE_BUILT_PRODUCTS_DIR_PATHS" : @"/Users/khu/linkedin/bluepill/build/Products/Debug-iphonesimulator",
-                        @"__XPC_DYLD_FRAMEWORK_PATH" : @"/Users/khu/linkedin/bluepill/build/Products/Debug-iphonesimulator",
-                        @"__XPC_DYLD_LIBRARY_PATH" : @"/Users/khu/linkedin/bluepill/build/Products/Debug-iphonesimulator"
-                        }};
     __block pid_t pid_test = 0;
     [self.device launchApplicationAsyncWithID:hostBundleId options:options completionHandler:^(NSError *error, pid_t pid) {
         // Save the process ID to the monitor
@@ -276,7 +239,7 @@
     dConnection.testRunnerPid = pid_test;
     [dConnection connectWithTimeout:3600];
     [bConnection startTestPlan];
-    
+
 }
 
 - (void)deleteSimulatorWithCompletion:(void (^)(NSError *error, BOOL success))completion {
