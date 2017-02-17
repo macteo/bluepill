@@ -225,6 +225,9 @@
                 [parser handleChunkData:chunk];
             };
         }
+        if (completion) {
+            completion(error, pid);
+        }
     }];
     [BPUtils runWithTimeOut:3600 until:^BOOL{
         return pid_test != 0;
