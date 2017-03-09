@@ -55,14 +55,17 @@ NSString *objcNmCmdline = @"nm -U '%@' | grep ' t ' | cut -d' ' -f3,4 | cut -d'-
         NSString *testName = [[NSString stringWithUTF8String:line]
                               stringByTrimmingCharactersInSet:[NSCharacterSet newlineCharacterSet]];
         NSArray *parts = [testName componentsSeparatedByString:@"."];
-        BPTestClass *testClass = testClassesDict[parts[1]];
-        if (!testClass) {
-            testClass = [[BPTestClass alloc] initWithName:parts[1]];
-            testClassesDict[parts[1]] = testClass;
-            [allClasses addObject:testClass];
-        }
-        if (![parts[2] containsString:@"DISABLE"]) {
-            [testClass addTestCase:[[BPTestCase alloc] initWithName:parts[2]]];
+        
+        if (parts.count > 2) {
+            BPTestClass *testClass = testClassesDict[parts[1]];
+            if (!testClass) {
+                testClass = [[BPTestClass alloc] initWithName:parts[1]];
+                testClassesDict[parts[1]] = testClass;
+                [allClasses addObject:testClass];
+            }
+            if (![parts[2] containsString:@"DISABLE"]) {
+                [testClass addTestCase:[[BPTestCase alloc] initWithName:parts[2]]];
+            }
         }
     }
     if (pclose(p) == -1) {
